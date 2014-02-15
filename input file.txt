@@ -1,0 +1,6 @@
+file name-------'8.png'
+x1=60
+x2=259
+y1=68
+y2=149
+no. of iterations = 300

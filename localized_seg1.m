@@ -1,0 +1,56 @@
+function seg = localized_seg1(I,init_mask,max_its,rad,alpha,method,display)
+  alpha = .2; 
+  method = 2; 
+  display = true;
+  I = im2graydouble(I); 
+  I4=I;
+  [dimy dimx] = size(I);
+  rad = round((dimy+dimx)/(2*8)); 
+    if(display>0) 
+      disp(['localiztion radius is: ' num2str(rad) ' pixels']); 
+    end
+    phi = mask2phi(init_mask);
+  for its = 1:max_its  
+     idx = find(phi <= 1.2 & phi >= -1.2)';  
+    [y x] = ind2sub(size(phi),idx);
+     xneg = x-rad; xpos = x+rad;     
+    yneg = y-rad; ypos = y+rad;
+    xneg(xneg<1)=1; yneg(yneg<1)=1;  
+    xpos(xpos>dimx)=dimx; ypos(ypos>dimy)=dimy;
+    u=zeros(size(idx)); v=zeros(size(idx)); 
+    Ain=zeros(size(idx)); Aout=zeros(size(idx)); 
+ for i = 1:numel(idx) 
+      img = I(yneg(i):ypos(i),xneg(i):xpos(i)); 
+      P = phi(yneg(i):ypos(i),xneg(i):xpos(i));
+
+      upts = find(P<=0);            
+      Ain(i) = length(upts)+eps;
+      u(i) = sum(img(upts))/Ain(i);
+      
+      vpts = find(P>0);            
+      Aout(i) = length(vpts)+eps;
+      v(i) = sum(img(vpts))/Aout(i);
+  end   
+ switch method  
+       
+     case 1,                
+      F = -(u-v).*(2.*I(idx)-u-v);
+     otherwise,             
+      F = -((u-v).*((I(idx)-u)./Ain+(I(idx)-v)./Aout));
+  end
+   curvature = get_curvature(phi,idx,x,y);  
+  dphidt = F./max(abs(F)) + alpha*curvature;  
+  dt = .45/(max(dphidt)+eps);
+ phi(idx) = phi(idx) + dt.*dphidt;
+ phi = sussman(phi, .5);
+ if((display>0)&&(mod(its,20) == 0)) 
+      showCurveAndPhi(I,phi,its);  
+    end
+  end
+if(display)
+    showCurveAndPhi(I,phi,its);
+  end
+seg = phi<=0; 
+
+function phi = mask2phi(init_a)
+  phi=bwdist(init_a)-bwdist(1-init_a)+im2double(init_a)-.5;
